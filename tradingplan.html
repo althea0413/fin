@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>操盤手每日大字卡 (真實損益版)</title>
+    <title>操盤手每日大字卡 (微台精準複利版)</title>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
@@ -78,7 +78,7 @@
         }
 
         .stat-card .value {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: bold;
             color: var(--text-main);
         }
@@ -122,7 +122,8 @@
             opacity: 0.7;
         }
 
-        .session-row.completed .session-info {
+        .session-row.completed .session-info,
+        .session-row.completed .session-details {
             text-decoration: line-through;
             color: #94a3b8;
         }
@@ -176,9 +177,12 @@
             font-size: 0.65rem;
             font-weight: bold;
             margin-right: 3px;
+            display: inline-block;
+            margin-bottom: 2px;
         }
         .badge-big { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
         .badge-small { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+        .badge-micro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
 
         .note-tag {
             background: #d1fae5;
@@ -199,7 +203,7 @@
 
     <div class="header">
         <h1>☁️ 操盤手日夜大字卡追蹤 ☁️</h1>
-        <p>57K 加 1 小台 | 4 小台 = 1 大台<br>目標 +180點 ($9,000) | 停損 -100點 ($5,000)</p>
+        <p>57K 加 1 微台 | 5 微 = 1 小 | 4 小 = 1 大<br>目標 +180點 ($1,800/微) | 停損 -100點 ($1,000/微)</p>
     </div>
 
     <div class="stats-grid">
@@ -220,19 +224,19 @@
     <div id="cardsContainer"></div>
 
     <script>
-        // 你的起始與遊戲規則設定
+        // 嚴格對齊你的真實參數
         const startCapital = 60133;
-        const marginPerSmall = 57000; // 每 57,000 加一口小台
-        const profitPerSmall = 9000;  // 180點 * 50元 = 9000元
-        const lossPerSmall = 5000;    // 100點 * 50元 = 5000元
+        const marginPerMicro = 57000; // 每 57,000 加一口微台
+        const profitPerMicro = 1800;  // 微台 180點 * 10元 = 1800元
+        const lossPerMicro = 1000;    // 微台 100點 * 10元 = 1000元
         
         const salary = 30000;
         const salaryDates = ['2026-07-31', '2026-08-31', '2026-09-30', '2026-10-30', '2026-11-30', '2026-12-31'];
 
-        // 產生所有日夜盤清單
+        // 從今天 7/21 正式開始產生清單
         function generateSessions() {
             let sessions = [];
-            let currentDate = new Date('2026-07-22');
+            let currentDate = new Date('2026-07-21');
             let endDate = new Date('2026-12-31');
 
             while (currentDate <= endDate) {
@@ -247,16 +251,19 @@
             return sessions;
         }
 
-        // 大小台換算邏輯 (4小台 = 1大台)
-        function formatPosition(totalSmalls) {
-            if (totalSmalls < 1) return `<span class="badge badge-small" style="color:gray;border-color:gray;background:#f1f5f9;">資金不足</span>`;
+        // 嚴格進位邏輯：5微=1小，4小=1大 (即 20微 = 1大)
+        function formatPosition(totalMicros) {
+            if (totalMicros < 1) return `<span class="badge badge-micro" style="color:gray;border-color:gray;background:#f1f5f9;">資金不足</span>`;
             
-            let big = Math.floor(totalSmalls / 4);
-            let small = totalSmalls % 4;
+            let big = Math.floor(totalMicros / 20);
+            let rem1 = totalMicros % 20;
+            let small = Math.floor(rem1 / 5);
+            let micro = rem1 % 5;
 
             let res = [];
             if (big > 0) res.push(`<span class="badge badge-big">${big} 大台</span>`);
             if (small > 0) res.push(`<span class="badge badge-small">${small} 小台</span>`);
+            if (micro > 0) res.push(`<span class="badge badge-micro">${micro} 微台</span>`);
             
             return res.join(" ");
         }
@@ -276,21 +283,23 @@
             const container = document.getElementById('cardsContainer');
             container.innerHTML = '';
 
-            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards_real')) || {};
+            // 使用新的儲存金鑰，避免被舊資料干擾
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_strict_micro')) || {};
             let currentCapital = startCapital;
 
-            // 1. 動態計算每一盤的資金與口數
+            // 1. 動態且精準地計算每一盤的資金與口數
             let sessionStates = sessions.map((session) => {
-                let allowedSmalls = Math.floor(currentCapital / marginPerSmall);
-                let sessionProfit = allowedSmalls * profitPerSmall;
-                let sessionLoss = allowedSmalls * lossPerSmall;
+                let allowedMicros = Math.floor(currentCapital / marginPerMicro);
+                let sessionProfit = allowedMicros * profitPerMicro;
+                let sessionLoss = allowedMicros * lossPerMicro;
                 let openCap = currentCapital;
 
+                // 只有被「打勾」的盤，資金才會真正加上去，作為下一盤的開盤資金
                 if (savedData[session.id]) {
                     currentCapital += sessionProfit;
                 }
                 
-                // 月底夜盤發薪水
+                // 月底夜盤，且有順利過關才發薪水 (依你原先邏輯)
                 if (session.type === '夜盤' && salaryDates.includes(session.date) && savedData[session.id]) {
                     currentCapital += salary;
                 }
@@ -298,17 +307,17 @@
                 return {
                     ...session,
                     openCap: openCap,
-                    smalls: allowedSmalls,
+                    micros: allowedMicros,
                     profit: sessionProfit,
                     loss: sessionLoss
                 };
             });
 
-            // 重新模擬「全部順利勾選」時的年底終極目標
+            // 重新模擬「全部順利勾選」時的年底終極目標 (以微台運算)
             let tempCap = startCapital;
             sessions.forEach(s => {
-                let m = Math.floor(tempCap / marginPerSmall);
-                tempCap += m * profitPerSmall;
+                let m = Math.floor(tempCap / marginPerMicro);
+                tempCap += m * profitPerMicro;
                 if(s.type === '夜盤' && salaryDates.includes(s.date)) tempCap += salary;
             });
             document.getElementById('finalTarget').innerText = formatMoney(tempCap);
@@ -360,7 +369,7 @@
                                     </div>
                                     <div class="session-details">
                                         可用資金: $${formatMoney(s.openCap)}<br>
-                                        實戰部位: ${formatPosition(s.smalls)}
+                                        實戰部位: ${formatPosition(s.micros)}
                                     </div>
                                 </div>
                             </div>
@@ -379,7 +388,7 @@
 
         function toggleSession(checkbox) {
             const id = checkbox.getAttribute('data-id');
-            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards_real')) || {};
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_strict_micro')) || {};
 
             if (checkbox.checked) {
                 savedData[id] = true;
@@ -387,7 +396,8 @@
                 delete savedData[id];
             }
 
-            localStorage.setItem('tradingProgress2026_cards_real', JSON.stringify(savedData));
+            // 更新儲存狀態並重新計算所有資金
+            localStorage.setItem('tradingProgress2026_strict_micro', JSON.stringify(savedData));
             renderApp(); 
         }
 
