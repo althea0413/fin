@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>操盤手複利追蹤器 (清透亮色漸層版)</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --header-bg: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --accent-green: #059669;
+            --accent-red: #dc2626;
+            --accent-gold: #d97706;
+            --accent-blue: #0284c7;
+            --border-color: rgba(224, 242, 254, 0.8);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 12px;
+            padding: 14px;
+            background: var(--header-bg);
+            border-radius: 14px;
+            box-shadow: 0 8px 25px rgba(2, 132, 199, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.15rem;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            letter-spacing: 0.5px;
+        }
+
+        .header p {
+            color: #f0f9ff;
+            margin: 4px 0 0 0;
+            font-size: 0.75rem;
+            opacity: 0.95;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 10px 6px;
+            border-radius: 10px;
+            border-top: 3px solid var(--accent-blue);
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 3px 0;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .stat-card .value {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .table-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 14px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 73vh;
+            border: 1px solid var(--border-color);
+            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 8px 30px rgba(2, 132, 199, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            min-width: 600px;
+        }
+
+        thead {
+            background-color: rgba(240, 249, 255, 0.9);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th, td {
+            padding: 9px 8px;
+            border-bottom: 1px solid rgba(224, 242, 254, 0.6);
+            white-space: nowrap;
+            font-size: 0.75rem;
+        }
+
+        th {
+            color: #0369a1;
+            font-weight: 700;
+        }
+
+        tr {
+            transition: background-color 0.15s ease;
+        }
+
+        tr:hover { background-color: rgba(255, 255, 255, 0.8); }
+
+        tr.session-day td:nth-child(2) { color: #d97706; font-weight: bold; }
+        tr.session-night td:nth-child(2) { color: #0284c7; font-weight: bold; }
+
+        tr.completed td {
+            color: #94a3b8 !important;
+            background-color: rgba(241, 245, 249, 0.5);
+        }
+
+        tr.completed td:not(:first-child) {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .badge {
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            margin-right: 2px;
+            display: inline-block;
+        }
+
+        .badge-big { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .badge-small { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        .badge-micro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+        .checkbox-container {
+            text-align: center;
+        }
+
+        .checkbox-container input {
+            width: 18px;
+            height: 18px;
+            accent-color: #0284c7;
+            vertical-align: middle;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .note {
+            color: #059669;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #7dd3fc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>☁️ 清透天空藍複利追蹤 ☁️</h1>
+        <p>57K加倉 | 目標 +180點 | 停損 -100點</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>已完成</h3>
+            <div class="value" id="completedDays">0/234</div>
+        </div>
+        <div class="stat-card">
+            <h3>總進度</h3>
+            <div class="value" id="progressPercent" style="color: var(--accent-blue);">0%</div>
+        </div>
+        <div class="stat-card">
+            <h3>年底目標</h3>
+            <div class="value" id="finalTarget" style="color: var(--accent-gold);">計算中</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="trackerTable">
+            <thead>
+                <tr>
+                    <th style="text-align: center;">打勾</th>
+                    <th>日期/盤</th>
+                    <th>開盤資金</th>
+                    <th>部位</th>
+                    <th style="color: #dc2626;">停損(-100點)</th>
+                    <th style="color: #059669;">獲利(+180點)</th>
+                    <th>結算總額</th>
+                    <th>備註</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- 動態生成 -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const startCapital = 60133;
+        const marginPerMicro = 57000; 
+        const profitPerMicro = 1800;  
+        const lossPerMicro = 1000;    
+        const salary = 30000;
+        const salaryDates = ['2026-07-31', '2026-08-31', '2026-09-30', '2026-10-30', '2026-11-30', '2026-12-31'];
+
+        function generateSessions() {
+            let sessions = [];
+            let currentDate = new Date('2026-07-22');
+            let endDate = new Date('2026-12-31');
+
+            while (currentDate <= endDate) {
+                let day = currentDate.getDay();
+                if (day !== 0 && day !== 6) { 
+                    let isoDate = currentDate.toISOString().split('T')[0];
+                    sessions.push({ date: isoDate, type: '日', id: isoDate + '-Day' });
+                    sessions.push({ date: isoDate, type: '夜', id: isoDate + '-Night' });
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return sessions;
+        }
+
+        function formatPosition(micros) {
+            let big = Math.floor(micros / 20);
+            let rem = micros % 20;
+            let small = Math.floor(rem / 5);
+            let micro = rem % 5;
+
+            let res = [];
+            if (big > 0) res.push(`<span class="badge badge-big">${big}大</span>`);
+            if (small > 0) res.push(`<span class="badge badge-small">${small}小</span>`);
+            if (micro > 0) res.push(`<span class="badge badge-micro">${micro}微</span>`);
+            return res.join(" ");
+        }
+
+        function formatMoney(num) {
+            return Math.floor(num).toLocaleString('en-US');
+        }
+
+        function initTracker() {
+            const sessions = generateSessions();
+            const tableBody = document.getElementById('tableBody');
+            let currentCapital = startCapital;
+            
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_glass_blue')) || {};
+
+            sessions.forEach((session) => {
+                let allowedMicros = Math.floor(currentCapital / marginPerMicro);
+                let sessionProfit = allowedMicros * profitPerMicro;
+                let sessionLoss = allowedMicros * lossPerMicro; 
+                let openCapital = currentCapital;
+                currentCapital += sessionProfit;
+
+                let note = "";
+                if (session.type === '夜' && salaryDates.includes(session.date)) {
+                    currentCapital += salary;
+                    note = `<span class="note">+3萬薪</span>`;
+                }
+                
+                if(openCapital < 1000000 && currentCapital >= 1000000) note += ` <span class="note" style="color:#b45309">🏆百萬</span>`;
+                if(openCapital < 10000000 && currentCapital >= 10000000) note += ` <span class="note" style="color:#b45309">🏆千萬</span>`;
+
+                const tr = document.createElement('tr');
+                tr.classList.add(session.type === '日' ? 'session-day' : 'session-night');
+
+                const isChecked = savedData[session.id] ? 'checked' : '';
+                if(isChecked) tr.classList.add('completed');
+                
+                let icon = session.type === '日' ? '☀️' : '🌙';
+
+                tr.innerHTML = `
+                    <td class="checkbox-container">
+                        <input type="checkbox" data-id="${session.id}" onchange="toggleRow(this)" ${isChecked}>
+                    </td>
+                    <td style="font-family: monospace; font-weight: bold;">
+                        ${session.date.slice(5)} ${icon}${session.type}
+                    </td>
+                    <td>${formatMoney(openCapital)}</td>
+                    <td>${formatPosition(allowedMicros)}</td>
+                    <td style="color: #dc2626; font-weight: bold;">-${formatMoney(sessionLoss)}</td>
+                    <td style="color: #059669; font-weight: bold;">+${formatMoney(sessionProfit)}</td>
+                    <td style="color: #d97706; font-weight: bold;">${formatMoney(currentCapital)}</td>
+                    <td>${note}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            document.getElementById('finalTarget').innerText = formatMoney(currentCapital);
+            updateStats();
+        }
+
+        function toggleRow(checkbox) {
+            const tr = checkbox.closest('tr');
+            const id = checkbox.getAttribute('data-id');
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_glass_blue')) || {};
+
+            if (checkbox.checked) {
+                tr.classList.add('completed');
+                savedData[id] = true;
+            } else {
+                tr.classList.remove('completed');
+                delete savedData[id];
+            }
+            
+            localStorage.setItem('tradingProgress2026_glass_blue', JSON.stringify(savedData));
+            updateStats();
+        }
+
+        function updateStats() {
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_glass_blue')) || {};
+            let completedCount = Object.keys(savedData).length;
+            let totalSessions = document.querySelectorAll('input[type="checkbox"]').length;
+            let percent = totalSessions > 0 ? Math.round((completedCount / totalSessions) * 100) : 0;
+
+            document.getElementById('completedDays').innerText = `${completedCount}/${totalSessions}`;
+            document.getElementById('progressPercent').innerText = `${percent}%`;
+        }
+
+        window.onload = initTracker;
+    </script>
+</body>
+</html>
