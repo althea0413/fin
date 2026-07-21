@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>操盤手每日大字卡複利追蹤</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --header-bg: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent-green: #059669;
+            --accent-red: #dc2626;
+            --accent-gold: #b45309;
+            --accent-blue: #0284c7;
+            --border-color: rgba(224, 242, 254, 0.9);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 12px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 16px;
+            background: var(--header-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(2, 132, 199, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.2rem;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        .header p {
+            color: #f0f9ff;
+            margin: 5px 0 0 0;
+            font-size: 0.75rem;
+            opacity: 0.95;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            padding: 10px 6px;
+            border-radius: 12px;
+            border-top: 4px solid var(--accent-blue);
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 3px 0;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .stat-card .value {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        /* 每日大字卡容器 */
+        .day-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.08);
+        }
+
+        .day-header {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #0369a1;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px dashed #e0f2fe;
+            padding-bottom: 6px;
+        }
+
+        .session-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(240, 249, 255, 0.6);
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(224, 242, 254, 0.8);
+            transition: all 0.2s ease;
+        }
+
+        .session-row.completed {
+            background: rgba(241, 245, 249, 0.7);
+            opacity: 0.7;
+        }
+
+        .session-row.completed .session-info {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+
+        .session-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .session-checkbox {
+            width: 22px;
+            height: 22px;
+            accent-color: #0284c7;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .session-title {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .session-details {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .session-right {
+            text-align: right;
+        }
+
+        .profit-text {
+            color: #059669;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .capital-text {
+            color: #d97706;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .badge {
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+        .badge-big { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .badge-small { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        .badge-micro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+        .note-tag {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #7dd3fc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>☁️ 操盤手日夜大字卡追蹤 ☁️</h1>
+        <p>57K加倉 | 日盤180點 / 夜盤180點 | 獨立勾選</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>已完成盤數</h3>
+            <div class="value" id="completedCount">0/234</div>
+        </div>
+        <div class="stat-card">
+            <h3>總進度</h3>
+            <div class="value" id="progressPercent" style="color: var(--accent-blue);">0%</div>
+        </div>
+        <div class="stat-card">
+            <h3>年底目標</h3>
+            <div class="value" id="finalTarget" style="color: var(--accent-gold);">計算中</div>
+        </div>
+    </div>
+
+    <!-- 卡片列表容器 -->
+    <div id="cardsContainer"></div>
+
+    <script>
+        const startCapital = 60133;
+        const marginPerMicro = 57000; 
+        const profitPerMicro = 1800;  
+        const lossPerMicro = 1000;    
+        const salary = 30000;
+        const salaryDates = ['2026-07-31', '2026-08-31', '2026-09-30', '2026-10-30', '2026-11-30', '2026-12-31'];
+
+        // 產生所有日夜盤清單
+        function generateSessions() {
+            let sessions = [];
+            let currentDate = new Date('2026-07-22');
+            let endDate = new Date('2026-12-31');
+
+            while (currentDate <= endDate) {
+                let day = currentDate.getDay();
+                if (day !== 0 && day !== 6) { 
+                    let isoDate = currentDate.toISOString().split('T')[0];
+                    sessions.push({ date: isoDate, type: '日盤', id: isoDate + '-Day', icon: '☀️' });
+                    sessions.push({ date: isoDate, type: '夜盤', id: isoDate + '-Night', icon: '🌙' });
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return sessions;
+        }
+
+        function formatPosition(micros) {
+            let big = Math.floor(micros / 20);
+            let rem = micros % 20;
+            let small = Math.floor(rem / 5);
+            let micro = rem % 5;
+
+            let res = [];
+            if (big > 0) res.push(`<span class="badge badge-big">${big}大</span>`);
+            if (small > 0) res.push(`<span class="badge badge-small">${small}小</span>`);
+            if (micro > 0) res.push(`<span class="badge badge-micro">${micro}微</span>`);
+            return res.join(" ");
+        }
+
+        function formatMoney(num) {
+            return Math.floor(num).toLocaleString('en-US');
+        }
+
+        // 取得星期幾文字
+        function getWeekdayText(dateStr) {
+            const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            let d = new Date(dateStr);
+            return days[d.getDay()];
+        }
+
+        function renderApp() {
+            const sessions = generateSessions();
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = '';
+
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards')) || {};
+            let currentCapital = startCapital;
+
+            // 1. 先用迴圈完整跑過所有盤別以計算「動態複利資金」
+            let sessionStates = sessions.map((session) => {
+                let allowedMicros = Math.floor(currentCapital / marginPerMicro);
+                let sessionProfit = allowedMicros * profitPerMicro;
+                let openCap = currentCapital;
+
+                // 如果該盤在之前被勾選完成，資金就加上去
+                if (savedData[session.id]) {
+                    currentCapital += sessionProfit;
+                }
+                // 薪水發放邏輯 (若當天夜盤被勾選且為月底)
+                if (session.type === '夜盤' && salaryDates.includes(session.date) && savedData[session.id]) {
+                    currentCapital += salary;
+                }
+
+                return {
+                    ...session,
+                    openCap: openCap,
+                    micros: allowedMicros,
+                    profit: sessionProfit,
+                    loss: allowedMicros * lossPerMicro
+                };
+            });
+
+            // 重新模擬未勾選時的最終目標（供顯示用）
+            let tempCap = startCapital;
+            sessions.forEach(s => {
+                let m = Math.floor(tempCap / marginPerMicro);
+                tempCap += m * profitPerMicro;
+                if(s.type === '夜盤' && salaryDates.includes(s.date)) tempCap += salary;
+            });
+            document.getElementById('finalTarget').innerText = formatMoney(tempCap);
+
+            // 2. 將賽局按「日期」群組化，做成大字卡
+            let groupedByDate = {};
+            sessionStates.forEach(s => {
+                if (!groupedByDate[s.date]) groupedByDate[s.date] = [];
+                groupedByDate[s.date].push(s);
+            });
+
+            let completedCount = Object.keys(savedData).length;
+            let totalSessions = sessions.length;
+            document.getElementById('completedCount').innerText = `${completedCount}/${totalSessions}`;
+            document.getElementById('progressPercent').innerText = `${Math.round((completedCount/totalSessions)*100)}%`;
+
+            // 3. 渲染每一張日大字卡
+            Object.keys(groupedByDate).forEach(date => {
+                let daySessions = groupedByDate[date];
+                let weekday = getWeekdayText(date);
+
+                let cardDiv = document.createElement('div');
+                cardDiv.className = 'day-card';
+
+                let html = `<div class="day-header">
+                    <span>${weekday} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">${date}</span></span>
+                </div>`;
+
+                daySessions.forEach(s => {
+                    let isChecked = savedData[s.id] ? 'checked' : '';
+                    let rowClass = isChecked ? 'session-row completed' : 'session-row';
+                    let noteHtml = "";
+                    
+                    if (s.type === '夜盤' && salaryDates.includes(s.date)) {
+                        noteHtml = `<span class="note-tag">+3萬薪水</span>`;
+                    }
+                    if (s.openCap < 1000000 && (s.openCap + s.profit) >= 1000000) {
+                        noteHtml += `<span class="note-tag" style="background:#fef3c7; color:#b45309;">🏆破百萬</span>`;
+                    }
+
+                    html += `
+                        <div class="${rowClass}" id="row-${s.id}">
+                            <div class="session-left">
+                                <input type="checkbox" class="session-checkbox" data-id="${s.id}" onchange="toggleSession(this)" ${isChecked}>
+                                <div>
+                                    <div class="session-info">
+                                        <span class="session-title">${s.icon} ${s.type}</span>
+                                        ${noteHtml}
+                                    </div>
+                                    <div class="session-details">
+                                        資金: $${formatMoney(s.openCap)} | 部位: ${formatPosition(s.micros)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="session-right">
+                                <div class="profit-text">+${formatMoney(s.profit)}</div>
+                                <div class="capital-text">停損 -${formatMoney(s.loss)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                cardDiv.innerHTML = html;
+                container.appendChild(cardDiv);
+            });
+        }
+
+        function toggleSession(checkbox) {
+            const id = checkbox.getAttribute('data-id');
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards')) || {};
+
+            if (checkbox.checked) {
+                savedData[id] = true;
+            } else {
+                delete savedData[id];
+            }
+
+            localStorage.setItem('tradingProgress2026_cards', JSON.stringify(savedData));
+            renderApp(); // 重新渲染以觸發複利連動計算
+        }
+
+        window.onload = renderApp;
+    </script>
+</body>
+</html>
