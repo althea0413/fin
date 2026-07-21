@@ -5,7 +5,404 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>操盤手每日大字卡 (微台精準複利版)</title>
     <style>
-        :root {
+        :root {a<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>日夜盤打卡卡</title>
+<style>
+    :root {
+        --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
+        --card-bg: rgba(255, 255, 255, 0.85);
+        --header-bg: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --accent-green: #059669;
+        --accent-red: #dc2626;
+        --accent-gold: #b45309;
+        --accent-blue: #0284c7;
+        --border-color: rgba(224, 242, 254, 0.9);
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg-gradient);
+        background-attachment: fixed;
+        color: var(--text-main);
+        margin: 0;
+        padding: 12px;
+        min-height: 100vh;
+    }
+    .header {
+        text-align: center;
+        margin-bottom: 15px;
+        padding: 16px;
+        background: var(--header-bg);
+        border-radius: 16px;
+        box-shadow: 0 8px 25px rgba(2, 132, 199, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    .header h1 { margin: 0; color: #fff; font-size: 1.2rem; text-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .header p { color: #f0f9ff; margin: 5px 0 0 0; font-size: 0.75rem; opacity: 0.95; line-height: 1.4; }
+
+    .capital-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        padding: 14px;
+        margin-bottom: 15px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 6px 20px rgba(2, 132, 199, 0.08);
+    }
+    .capital-card label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 6px;
+    }
+    .capital-row { display: flex; gap: 8px; }
+    .capital-row input[type=number] {
+        flex: 1;
+        font-size: 1rem;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        background: #fff;
+        color: var(--text-main);
+    }
+    .capital-row button {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        background: var(--accent-blue);
+        color: #fff;
+        font-weight: bold;
+        font-size: 0.85rem;
+    }
+    .capital-note {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+    .position-now {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #e0f2fe;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .position-now .lab { font-size: 0.75rem; color: var(--text-muted); }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        padding: 10px 6px;
+        border-radius: 12px;
+        border-top: 4px solid var(--accent-blue);
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(2, 132, 199, 0.08);
+        border: 1px solid var(--border-color);
+    }
+    .stat-card h3 { margin: 0 0 3px 0; font-size: 0.65rem; color: var(--text-muted); }
+    .stat-card .value { font-size: 0.85rem; font-weight: bold; color: var(--text-main); }
+
+    .day-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        padding: 14px;
+        margin-bottom: 15px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 6px 20px rgba(2, 132, 199, 0.08);
+    }
+    .day-header {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #0369a1;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px dashed #e0f2fe;
+        padding-bottom: 6px;
+    }
+    .session-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(240, 249, 255, 0.6);
+        padding: 10px 12px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(224, 242, 254, 0.8);
+        transition: all 0.2s ease;
+    }
+    .session-row.completed { background: rgba(241, 245, 249, 0.7); opacity: 0.7; }
+    .session-row.completed .session-title,
+    .session-row.completed .session-details { text-decoration: line-through; color: #94a3b8; }
+
+    .session-left { display: flex; align-items: center; gap: 10px; }
+    .session-checkbox { width: 22px; height: 22px; accent-color: #0284c7; cursor: pointer; border-radius: 6px; flex-shrink: 0; }
+    .session-title { font-weight: bold; font-size: 0.9rem; }
+    .session-details { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+    .session-right { text-align: right; }
+    .pts-text { color: var(--accent-blue); font-weight: bold; font-size: 0.85rem; }
+
+    .badge { padding: 2px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; margin-right: 3px; display: inline-block; margin-bottom: 2px; }
+    .badge-big { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-small { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+    .badge-micro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-none { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+
+    .add-day {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1.5px dashed var(--accent-blue);
+        background: transparent;
+        color: var(--accent-blue);
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .reset { display: block; margin: 22px auto 0; background: none; border: none; color: var(--text-muted); font-size: 12px; text-decoration: underline; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #7dd3fc; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>☁️ 日夜盤打卡卡 ☁️</h1>
+    <p>每盤目標 +180 點・停損 -100 點・打卡只記錄有沒有做到,口數看你真實本金</p>
+</div>
+
+<div class="capital-card">
+    <label>目前實際本金（自己輸入,想更新隨時改)</label>
+    <div class="capital-row">
+        <input type="number" id="capitalInput" placeholder="例如 63600">
+        <button id="saveCapitalBtn">更新</button>
+    </div>
+    <div class="position-now">
+        <span class="lab">依此本金允許部位:</span>
+        <span id="positionBadges"></span>
+    </div>
+    <div class="capital-note">
+        門檻：每 57,000 元可加 1 口微台，5 口微台 = 1 口小台，20 口微台 = 1 口大台。這裡不會因為你打勾就自動加錢——口數永遠照你自己輸入的真實本金算。
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>已打卡盤數</h3>
+        <div class="value" id="completedCount">0</div>
+    </div>
+    <div class="stat-card">
+        <h3>累積點數</h3>
+        <div class="value" id="totalPts" style="color: var(--accent-blue);">0</div>
+    </div>
+    <div class="stat-card">
+        <h3>連續全開</h3>
+        <div class="value" id="streak" style="color: var(--accent-gold);">0</div>
+    </div>
+</div>
+
+<div id="cardsContainer"></div>
+
+<button class="add-day" id="addDayBtn">＋ 新增一天</button>
+<button class="reset" id="resetBtn">清空所有紀錄</button>
+
+<script>
+const CHECK_KEY = 'daynight_checkin_v2';
+const CAPITAL_KEY = 'daynight_checkin_capital_v2';
+const DATES_KEY = 'daynight_checkin_dates_v2';
+const marginPerMicro = 57000;
+
+function loadChecks(){
+    try { return JSON.parse(localStorage.getItem(CHECK_KEY)) || {}; } catch(e){ return {}; }
+}
+function saveChecks(d){ localStorage.setItem(CHECK_KEY, JSON.stringify(d)); }
+
+function loadCapital(){
+    const v = localStorage.getItem(CAPITAL_KEY);
+    return v ? Number(v) : 60133;
+}
+function saveCapital(v){ localStorage.setItem(CAPITAL_KEY, String(v)); }
+
+function loadDates(){
+    try { return JSON.parse(localStorage.getItem(DATES_KEY)) || []; } catch(e){ return []; }
+}
+function saveDates(d){ localStorage.setItem(DATES_KEY, JSON.stringify(d)); }
+
+function getWeekdayText(dateStr){
+    const days = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    return days[new Date(dateStr+'T00:00:00').getDay()];
+}
+
+// Format a Date as YYYY-MM-DD using LOCAL time (never toISOString, which
+// converts to UTC and can shift the date backward a day in UTC+8).
+function formatDateLocal(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function positionBadges(capital){
+    const totalMicros = Math.floor(capital / marginPerMicro);
+    if (totalMicros < 1) return `<span class="badge badge-none">本金不足 1 口微台</span>`;
+    const big = Math.floor(totalMicros / 20);
+    const rem = totalMicros % 20;
+    const small = Math.floor(rem / 5);
+    const micro = rem % 5;
+    let res = [];
+    if (big > 0) res.push(`<span class="badge badge-big">${big} 大台</span>`);
+    if (small > 0) res.push(`<span class="badge badge-small">${small} 小台</span>`);
+    if (micro > 0) res.push(`<span class="badge badge-micro">${micro} 微台</span>`);
+    if (res.length === 0) res.push(`<span class="badge badge-none">無</span>`);
+    return res.join(' ');
+}
+
+function seedDates(){
+    let out = [];
+    let d = new Date();
+    let count = 0;
+    while (count < 14) {
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) { out.push(formatDateLocal(d)); count++; }
+        d.setDate(d.getDate() + 1);
+    }
+    return out;
+}
+
+let dates = loadDates();
+if (dates.length === 0) {
+    dates = seedDates();
+    saveDates(dates);
+}
+
+function render(){
+    const capital = loadCapital();
+    document.getElementById('capitalInput').value = capital;
+    document.getElementById('positionBadges').innerHTML = positionBadges(capital);
+
+    const checks = loadChecks();
+    const container = document.getElementById('cardsContainer');
+    container.innerHTML = '';
+
+    dates.sort();
+    dates.forEach(date => {
+        const weekday = getWeekdayText(date);
+        const sessions = [
+            { id: date + '-Day', type: '日盤', icon: '☀️' },
+            { id: date + '-Night', type: '夜盤', icon: '🌙' }
+        ];
+
+        let html = `<div class="day-header">
+            <span>${weekday} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">${date}</span></span>
+        </div>`;
+
+        sessions.forEach(s => {
+            const isChecked = !!checks[s.id];
+            const rowClass = isChecked ? 'session-row completed' : 'session-row';
+            html += `
+                <div class="${rowClass}">
+                    <div class="session-left">
+                        <input type="checkbox" class="session-checkbox" data-id="${s.id}" ${isChecked ? 'checked' : ''}>
+                        <div>
+                            <div class="session-title">${s.icon} ${s.type}</div>
+                            <div class="session-details">目標 +180 點・停損 -100 點</div>
+                        </div>
+                    </div>
+                    <div class="session-right">
+                        <div class="pts-text">${isChecked ? '180 點 ✓' : '未打卡'}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        const card = document.createElement('div');
+        card.className = 'day-card';
+        card.innerHTML = html;
+        container.appendChild(card);
+    });
+
+    container.querySelectorAll('.session-checkbox').forEach(el => {
+        el.addEventListener('change', () => {
+            const checks = loadChecks();
+            const id = el.dataset.id;
+            if (el.checked) checks[id] = true; else delete checks[id];
+            saveChecks(checks);
+            render();
+        });
+    });
+
+    updateSummary();
+}
+
+function updateSummary(){
+    const checks = loadChecks();
+    const checkedIds = Object.keys(checks);
+    document.getElementById('completedCount').textContent = checkedIds.length;
+    document.getElementById('totalPts').textContent = (checkedIds.length * 180).toLocaleString();
+
+    const sortedDates = [...dates].sort().reverse();
+    let streak = 0;
+    for (const date of sortedDates) {
+        if (checks[date + '-Day'] && checks[date + '-Night']) streak++;
+        else break;
+    }
+    document.getElementById('streak').textContent = streak;
+}
+
+document.getElementById('saveCapitalBtn').addEventListener('click', () => {
+    const v = Number(document.getElementById('capitalInput').value);
+    if (!isNaN(v) && v >= 0) {
+        saveCapital(v);
+        render();
+    }
+});
+
+document.getElementById('addDayBtn').addEventListener('click', () => {
+    let last = dates.length ? new Date(dates[dates.length - 1] + 'T00:00:00') : new Date();
+    last.setDate(last.getDate() + 1);
+    while (last.getDay() === 0 || last.getDay() === 6) {
+        last.setDate(last.getDate() + 1);
+    }
+    const newDate = formatDateLocal(last);
+    if (!dates.includes(newDate)) {
+        dates.push(newDate);
+        saveDates(dates);
+        render();
+    }
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+    if (confirm('確定要清空所有打卡紀錄嗎？此動作無法復原。')) {
+        localStorage.removeItem(CHECK_KEY);
+        localStorage.removeItem(DATES_KEY);
+        dates = seedDates();
+        saveDates(dates);
+        render();
+    }
+});
+
+render();
+</script>
+</body>
+</html>
             --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
             --card-bg: rgba(255, 255, 255, 0.85);
             --header-bg: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
