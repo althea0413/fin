@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>操盤手每日大字卡複利追蹤</title>
+    <title>操盤手每日大字卡 (真實損益版)</title>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #eff6ff 100%);
@@ -50,6 +50,7 @@
             margin: 5px 0 0 0;
             font-size: 0.75rem;
             opacity: 0.95;
+            line-height: 1.4;
         }
 
         .stats-grid {
@@ -82,7 +83,6 @@
             color: var(--text-main);
         }
 
-        /* 每日大字卡容器 */
         .day-card {
             background: var(--card-bg);
             backdrop-filter: blur(12px);
@@ -149,7 +149,8 @@
         .session-details {
             font-size: 0.75rem;
             color: var(--text-muted);
-            margin-top: 2px;
+            margin-top: 4px;
+            line-height: 1.4;
         }
 
         .session-right {
@@ -160,24 +161,24 @@
             color: #059669;
             font-weight: bold;
             font-size: 0.85rem;
+            margin-bottom: 3px;
         }
 
         .capital-text {
-            color: #d97706;
+            color: #e11d48;
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
 
         .badge {
             padding: 2px 5px;
             border-radius: 4px;
-            font-size: 0.6rem;
+            font-size: 0.65rem;
             font-weight: bold;
-            margin-left: 4px;
+            margin-right: 3px;
         }
-        .badge-big { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-        .badge-small { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-        .badge-micro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-big { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .badge-small { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
 
         .note-tag {
             background: #d1fae5;
@@ -198,7 +199,7 @@
 
     <div class="header">
         <h1>☁️ 操盤手日夜大字卡追蹤 ☁️</h1>
-        <p>57K加倉 | 日盤180點 / 夜盤180點 | 獨立勾選</p>
+        <p>57K 加 1 小台 | 4 小台 = 1 大台<br>目標 +180點 ($9,000) | 停損 -100點 ($5,000)</p>
     </div>
 
     <div class="stats-grid">
@@ -216,14 +217,15 @@
         </div>
     </div>
 
-    <!-- 卡片列表容器 -->
     <div id="cardsContainer"></div>
 
     <script>
+        // 你的起始與遊戲規則設定
         const startCapital = 60133;
-        const marginPerMicro = 57000; 
-        const profitPerMicro = 1800;  
-        const lossPerMicro = 1000;    
+        const marginPerSmall = 57000; // 每 57,000 加一口小台
+        const profitPerSmall = 9000;  // 180點 * 50元 = 9000元
+        const lossPerSmall = 5000;    // 100點 * 50元 = 5000元
+        
         const salary = 30000;
         const salaryDates = ['2026-07-31', '2026-08-31', '2026-09-30', '2026-10-30', '2026-11-30', '2026-12-31'];
 
@@ -245,16 +247,17 @@
             return sessions;
         }
 
-        function formatPosition(micros) {
-            let big = Math.floor(micros / 20);
-            let rem = micros % 20;
-            let small = Math.floor(rem / 5);
-            let micro = rem % 5;
+        // 大小台換算邏輯 (4小台 = 1大台)
+        function formatPosition(totalSmalls) {
+            if (totalSmalls < 1) return `<span class="badge badge-small" style="color:gray;border-color:gray;background:#f1f5f9;">資金不足</span>`;
+            
+            let big = Math.floor(totalSmalls / 4);
+            let small = totalSmalls % 4;
 
             let res = [];
-            if (big > 0) res.push(`<span class="badge badge-big">${big}大</span>`);
-            if (small > 0) res.push(`<span class="badge badge-small">${small}小</span>`);
-            if (micro > 0) res.push(`<span class="badge badge-micro">${micro}微</span>`);
+            if (big > 0) res.push(`<span class="badge badge-big">${big} 大台</span>`);
+            if (small > 0) res.push(`<span class="badge badge-small">${small} 小台</span>`);
+            
             return res.join(" ");
         }
 
@@ -262,7 +265,6 @@
             return Math.floor(num).toLocaleString('en-US');
         }
 
-        // 取得星期幾文字
         function getWeekdayText(dateStr) {
             const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
             let d = new Date(dateStr);
@@ -274,20 +276,21 @@
             const container = document.getElementById('cardsContainer');
             container.innerHTML = '';
 
-            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards')) || {};
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards_real')) || {};
             let currentCapital = startCapital;
 
-            // 1. 先用迴圈完整跑過所有盤別以計算「動態複利資金」
+            // 1. 動態計算每一盤的資金與口數
             let sessionStates = sessions.map((session) => {
-                let allowedMicros = Math.floor(currentCapital / marginPerMicro);
-                let sessionProfit = allowedMicros * profitPerMicro;
+                let allowedSmalls = Math.floor(currentCapital / marginPerSmall);
+                let sessionProfit = allowedSmalls * profitPerSmall;
+                let sessionLoss = allowedSmalls * lossPerSmall;
                 let openCap = currentCapital;
 
-                // 如果該盤在之前被勾選完成，資金就加上去
                 if (savedData[session.id]) {
                     currentCapital += sessionProfit;
                 }
-                // 薪水發放邏輯 (若當天夜盤被勾選且為月底)
+                
+                // 月底夜盤發薪水
                 if (session.type === '夜盤' && salaryDates.includes(session.date) && savedData[session.id]) {
                     currentCapital += salary;
                 }
@@ -295,22 +298,22 @@
                 return {
                     ...session,
                     openCap: openCap,
-                    micros: allowedMicros,
+                    smalls: allowedSmalls,
                     profit: sessionProfit,
-                    loss: allowedMicros * lossPerMicro
+                    loss: sessionLoss
                 };
             });
 
-            // 重新模擬未勾選時的最終目標（供顯示用）
+            // 重新模擬「全部順利勾選」時的年底終極目標
             let tempCap = startCapital;
             sessions.forEach(s => {
-                let m = Math.floor(tempCap / marginPerMicro);
-                tempCap += m * profitPerMicro;
+                let m = Math.floor(tempCap / marginPerSmall);
+                tempCap += m * profitPerSmall;
                 if(s.type === '夜盤' && salaryDates.includes(s.date)) tempCap += salary;
             });
             document.getElementById('finalTarget').innerText = formatMoney(tempCap);
 
-            // 2. 將賽局按「日期」群組化，做成大字卡
+            // 2. 將賽局按「日期」群組化
             let groupedByDate = {};
             sessionStates.forEach(s => {
                 if (!groupedByDate[s.date]) groupedByDate[s.date] = [];
@@ -322,7 +325,7 @@
             document.getElementById('completedCount').innerText = `${completedCount}/${totalSessions}`;
             document.getElementById('progressPercent').innerText = `${Math.round((completedCount/totalSessions)*100)}%`;
 
-            // 3. 渲染每一張日大字卡
+            // 3. 渲染字卡
             Object.keys(groupedByDate).forEach(date => {
                 let daySessions = groupedByDate[date];
                 let weekday = getWeekdayText(date);
@@ -340,7 +343,7 @@
                     let noteHtml = "";
                     
                     if (s.type === '夜盤' && salaryDates.includes(s.date)) {
-                        noteHtml = `<span class="note-tag">+3萬薪水</span>`;
+                        noteHtml = `<span class="note-tag">+3萬薪</span>`;
                     }
                     if (s.openCap < 1000000 && (s.openCap + s.profit) >= 1000000) {
                         noteHtml += `<span class="note-tag" style="background:#fef3c7; color:#b45309;">🏆破百萬</span>`;
@@ -356,13 +359,14 @@
                                         ${noteHtml}
                                     </div>
                                     <div class="session-details">
-                                        資金: $${formatMoney(s.openCap)} | 部位: ${formatPosition(s.micros)}
+                                        可用資金: $${formatMoney(s.openCap)}<br>
+                                        實戰部位: ${formatPosition(s.smalls)}
                                     </div>
                                 </div>
                             </div>
                             <div class="session-right">
-                                <div class="profit-text">+${formatMoney(s.profit)}</div>
-                                <div class="capital-text">停損 -${formatMoney(s.loss)}</div>
+                                <div class="profit-text">+ $${formatMoney(s.profit)}</div>
+                                <div class="capital-text">停損 - $${formatMoney(s.loss)}</div>
                             </div>
                         </div>
                     `;
@@ -375,7 +379,7 @@
 
         function toggleSession(checkbox) {
             const id = checkbox.getAttribute('data-id');
-            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards')) || {};
+            let savedData = JSON.parse(localStorage.getItem('tradingProgress2026_cards_real')) || {};
 
             if (checkbox.checked) {
                 savedData[id] = true;
@@ -383,8 +387,8 @@
                 delete savedData[id];
             }
 
-            localStorage.setItem('tradingProgress2026_cards', JSON.stringify(savedData));
-            renderApp(); // 重新渲染以觸發複利連動計算
+            localStorage.setItem('tradingProgress2026_cards_real', JSON.stringify(savedData));
+            renderApp(); 
         }
 
         window.onload = renderApp;
