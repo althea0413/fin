@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易紀律日誌</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF6EF;
+    --ink:#2B241E;
+    --ink-soft:#6B6157;
+    --rose:#B4506E;
+    --rose-deep:#8F3B54;
+    --amber:#B5822E;
+    --miss:#9C9184;
+    --line:#E5DBCB;
+    --card:#FFFFFF;
+    --card-edge:#EFE6D6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:28px 16px 80px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{margin-bottom:22px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--rose-deep);
+    margin-bottom:6px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:30px;
+    margin:0 0 4px;
+    letter-spacing:-.01em;
+  }
+  .sub{color:var(--ink-soft);font-size:13.5px;line-height:1.5;}
+
+  /* ticker tape - signature element */
+  .tape-wrap{margin:22px 0 26px;}
+  .tape-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    letter-spacing:.08em;
+    margin-bottom:8px;
+    display:flex;justify-content:space-between;
+  }
+  .tape{
+    display:flex;
+    gap:3px;
+    background:var(--ink);
+    padding:10px 8px;
+    border-radius:3px;
+    overflow-x:auto;
+  }
+  .tape-cell{
+    flex:0 0 auto;
+    width:14px;height:26px;
+    border-radius:1px;
+    background:#3D362E;
+    position:relative;
+  }
+  .tape-cell.full{background:var(--rose);}
+  .tape-cell.partial{background:var(--amber);}
+  .tape-cell.miss{background:#54493D;}
+  .tape-cell.today{box-shadow:0 0 0 1.5px var(--cream) inset, 0 0 0 2.5px var(--rose);}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-edge);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .card-title{
+    font-family:'Fraunces',serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 14px;
+    display:flex;align-items:baseline;justify-content:space-between;
+  }
+  .date-pick{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    background:transparent;
+    border:none;
+    text-align:right;
+  }
+
+  .points-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .point-field{flex:1;}
+  .point-field label{
+    display:block;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    letter-spacing:.02em;
+  }
+  .point-field input{
+    width:100%;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:22px;
+    font-weight:500;
+    padding:10px 10px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:var(--cream);
+    color:var(--ink);
+  }
+  .point-field input:focus{outline:2px solid var(--rose);outline-offset:0;border-color:var(--rose);}
+
+  .result-banner{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    padding:9px 12px;
+    border-radius:7px;
+    margin-bottom:16px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .result-banner.full{background:#F6E9ED;color:var(--rose-deep);}
+  .result-banner.partial{background:#F6EEDD;color:var(--amber);}
+  .result-banner.miss{background:#F1EEE8;color:var(--ink-soft);}
+  .result-banner.empty{background:var(--cream);color:var(--ink-soft);border:1px dashed var(--line);}
+
+  .checklist{display:flex;flex-direction:column;gap:2px;}
+  .check-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 4px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    user-select:none;
+  }
+  .check-item:last-child{border-bottom:none;}
+  .box{
+    flex:0 0 20px;
+    width:20px;height:20px;
+    border-radius:5px;
+    border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    transition:background .12s, border-color .12s;
+  }
+  .box svg{width:12px;height:12px;opacity:0;transition:opacity .12s;}
+  .check-item.on .box{background:var(--rose);border-color:var(--rose);}
+  .check-item.on .box svg{opacity:1;}
+  .check-item{align-items:flex-start;}
+  .check-item .box{margin-top:1px;}
+  .check-item .txt{font-size:14px;flex:1;}
+  .check-item .txt .zh-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    margin-right:6px;
+  }
+  .check-item .rule{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    margin-top:4px;
+  }
+
+  textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:var(--cream);
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    padding:10px;
+    resize:vertical;
+    min-height:56px;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--rose);outline-offset:0;border-color:var(--rose);}
+  .label-sm{font-size:11px;color:var(--ink-soft);margin:14px 0 6px;}
+
+  .save-row{display:flex;gap:10px;margin-top:16px;}
+  button.primary{
+    flex:1;
+    background:var(--ink);
+    color:var(--cream);
+    border:none;
+    padding:13px;
+    border-radius:7px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  button.primary:active{background:var(--rose-deep);}
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:13px 16px;
+    border-radius:7px;
+    font-size:13px;
+    cursor:pointer;
+  }
+
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .stat{
+    background:var(--card);
+    border:1px solid var(--card-edge);
+    border-radius:9px;
+    padding:12px 8px;
+    text-align:center;
+  }
+  .stat .num{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    font-weight:600;
+    color:var(--rose-deep);
+  }
+  .stat .lbl{font-size:10px;color:var(--ink-soft);margin-top:2px;line-height:1.3;}
+
+  .history{margin-top:6px;}
+  .hist-row{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 4px;
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .hist-row:last-child{border-bottom:none;}
+  .hist-date{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--ink-soft);
+    flex:0 0 64px;
+  }
+  .hist-dots{display:flex;gap:3px;flex:0 0 auto;}
+  .hist-dot{width:7px;height:7px;border-radius:50%;background:var(--line);}
+  .hist-dot.on{background:var(--rose);}
+  .hist-pts{
+    font-family:'IBM Plex Mono',monospace;
+    margin-left:auto;
+    color:var(--ink);
+  }
+  .hist-pts.miss{color:var(--miss);}
+
+  .empty-hist{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+    padding:24px 0;
+  }
+
+  .status-msg{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    height:14px;
+  }
+
+  .loading{
+    text-align:center;
+    color:var(--ink-soft);
+    padding:40px 0;
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Trading Discipline Log</div>
+    <h1>交易紀律日誌</h1>
+    <div class="sub">今日目標僅供參考，不是義務。四項指標長期維持品質，淨值自然創新高。</div>
+  </header>
+
+  <div class="tape-wrap">
+    <div class="tape-label"><span>近 14 日紀律狀態</span><span id="streakLabel">—</span></div>
+    <div class="tape" id="tape"></div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="card">
+    <div class="card-title">
+      今日紀錄
+      <input type="date" class="date-pick" id="dateInput">
+    </div>
+
+    <div class="points-row">
+      <div class="point-field">
+        <label>目標點數（參考）</label>
+        <input type="number" id="targetInput" value="181">
+      </div>
+      <div class="point-field">
+        <label>實際點數</label>
+        <input type="number" id="actualInput" placeholder="0">
+      </div>
+    </div>
+
+    <div class="result-banner empty" id="resultBanner">尚未填寫今日點數</div>
+
+    <div class="checklist">
+      <div class="check-item" data-key="entrySignal">
+        <div class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="txt"><span class="zh-num">01</span>是否依照策略進場
+          <span class="rule">沒有符合訊號就不進場，就算今天 ATR 再大，也可以 0 口收工。不追價、不預測行情，只做策略允許的單。</span>
+        </div>
+      </div>
+      <div class="check-item" data-key="stopLoss">
+        <div class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="txt"><span class="zh-num">02</span>是否遵守停損
+          <span class="rule">停損點一到就出場，不凹單、不因情緒往後延。單日虧損達上限即停止交易。</span>
+        </div>
+      </div>
+      <div class="check-item" data-key="atrTarget">
+        <div class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="txt"><span class="zh-num">03</span>是否達成 ATR 10% 目標
+          <span class="rule">181 點是市場提供的合理波動參考，不是必達 KPI。達到即停止主動加碼，交由移動停利決定是否延伸；盤勢不符可接受 0 點收工。</span>
+        </div>
+      </div>
+      <div class="check-item" data-key="equityHigh">
+        <div class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="txt"><span class="zh-num">04</span>帳戶淨值是否創新高
+          <span class="rule">檢視今日收盤淨值是否高於歷史最高點。前三項長期維持高品質，這項通常會跟著改善，不需要單獨去追求。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="label-sm">備註（選填）</div>
+    <textarea id="notesInput" placeholder="今天盤勢結構、是否0點收工的理由..."></textarea>
+
+    <div class="save-row">
+      <button class="primary" id="saveBtn">儲存今日紀錄</button>
+      <button class="ghost" id="clearBtn">清除</button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">歷史紀錄</div>
+    <div class="history" id="historyList"><div class="loading">載入中...</div></div>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY_PREFIX = 'checkin:';
+let allDays = {};
+let currentDate = todayStr();
+
+function todayStr(){
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+
+function dayKey(date){ return STORAGE_KEY_PREFIX + date; }
+
+async function loadAllDays(){
+  try{
+    const days = {};
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith(STORAGE_KEY_PREFIX)){
+        try{
+          const raw = localStorage.getItem(k);
+          if(raw){
+            const date = k.replace(STORAGE_KEY_PREFIX,'');
+            days[date] = JSON.parse(raw);
+          }
+        }catch(e){}
+      }
+    }
+    return days;
+  }catch(e){
+    console.error('load error', e);
+    return {};
+  }
+}
+
+async function saveDay(date, data){
+  try{
+    localStorage.setItem(dayKey(date), JSON.stringify(data));
+    return true;
+  }catch(e){
+    console.error('save error', e);
+    return false;
+  }
+}
+
+async function deleteDay(date){
+  try{
+    localStorage.removeItem(dayKey(date));
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function scoreOf(rec){
+  if(!rec) return null;
+  const keys = ['entrySignal','stopLoss','atrTarget','equityHigh'];
+  return keys.filter(k=>rec[k]).length;
+}
+
+function classifyDay(rec){
+  const s = scoreOf(rec);
+  if(s===null) return null;
+  if(s===4) return 'full';
+  if(s>=2) return 'partial';
+  return 'miss';
+}
+
+function fmtDateShort(dateStr){
+  const [y,m,d] = dateStr.split('-');
+  return `${m}/${d}`;
+}
+
+function renderTape(){
+  const tape = document.getElementById('tape');
+  tape.innerHTML = '';
+  const dates = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
+    const tz = d.getTimezoneOffset()*60000;
+    dates.push(new Date(d-tz).toISOString().slice(0,10));
+  }
+  let full=0, partial=0, miss=0, filled=0;
+  dates.forEach(date=>{
+    const rec = allDays[date];
+    const cls = classifyDay(rec);
+    const cell = document.createElement('div');
+    cell.className = 'tape-cell' + (cls ? ' '+cls : '') + (date===currentDate ? ' today' : '');
+    cell.title = date + (cls ? ` (${scoreOf(rec)}/4)` : ' 無紀錄');
+    tape.appendChild(cell);
+    if(cls){
+      filled++;
+      if(cls==='full') full++;
+      else if(cls==='partial') partial++;
+      else miss++;
+    }
+  });
+  document.getElementById('streakLabel').textContent = filled ? `${full} 全項 / ${filled} 已填` : '尚無紀錄';
+}
+
+function renderStats(){
+  const dates = Object.keys(allDays).sort();
+  const last30 = dates.slice(-30);
+  let winDays=0, totalPts=0, ptsDays=0, streak=0;
+
+  const sorted = [...dates].sort().reverse();
+  for(const date of sorted){
+    const rec = allDays[date];
+    if(rec && scoreOf(rec)===4){ streak++; } else { break; }
+  }
+
+  last30.forEach(date=>{
+    const rec = allDays[date];
+    if(rec){
+      if(typeof rec.actual === 'number'){
+        if(rec.actual >= rec.target) winDays++;
+        totalPts += rec.actual;
+        ptsDays++;
+      }
+    }
+  });
+
+  const avgPts = ptsDays ? Math.round(totalPts/ptsDays) : 0;
+  const hitRate = ptsDays ? Math.round((winDays/ptsDays)*100) : 0;
+
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = `
+    <div class="stat"><div class="num">${streak}</div><div class="lbl">連續全項達標</div></div>
+    <div class="stat"><div class="num">${hitRate}%</div><div class="lbl">近30日達標率</div></div>
+    <div class="stat"><div class="num">${avgPts}</div><div class="lbl">近30日均點</div></div>
+    <div class="stat"><div class="num">${ptsDays}</div><div class="lbl">近30日紀錄數</div></div>
+  `;
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const dates = Object.keys(allDays).sort().reverse().slice(0,20);
+  if(!dates.length){
+    list.innerHTML = '<div class="empty-hist">還沒有紀錄，開始今天的第一筆吧</div>';
+    return;
+  }
+  list.innerHTML = dates.map(date=>{
+    const rec = allDays[date];
+    const keys = ['entrySignal','stopLoss','atrTarget','equityHigh'];
+    const dots = keys.map(k=>`<div class="hist-dot${rec[k]?' on':''}"></div>`).join('');
+    const hasPts = typeof rec.actual === 'number';
+    const missTarget = hasPts && rec.actual < rec.target;
+    const ptsTxt = hasPts ? `${rec.actual}點` : '—';
+    return `<div class="hist-row">
+      <div class="hist-date">${fmtDateShort(date)}</div>
+      <div class="hist-dots">${dots}</div>
+      <div class="hist-pts${missTarget?' miss':''}">${ptsTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderResultBanner(){
+  const target = parseFloat(document.getElementById('targetInput').value) || 0;
+  const actualVal = document.getElementById('actualInput').value;
+  const banner = document.getElementById('resultBanner');
+  if(actualVal === ''){
+    banner.className = 'result-banner empty';
+    banner.textContent = '尚未填寫今日點數';
+    return;
+  }
+  const actual = parseFloat(actualVal);
+  if(actual >= target){
+    banner.className = 'result-banner full';
+    banner.textContent = `達成目標（${actual} / ${target} 點）— 交由移動停利決定是否延伸`;
+  }else if(actual > 0){
+    banner.className = 'result-banner partial';
+    banner.textContent = `未達目標（${actual} / ${target} 點）— 若盤勢不符可接受 0 點收工`;
+  }else{
+    banner.className = 'result-banner miss';
+    banner.textContent = `今日 0 點 — 若無訊號，這是正確的收工`;
+  }
+}
+
+function loadFormForDate(date){
+  const rec = allDays[date] || {};
+  document.getElementById('targetInput').value = (typeof rec.target === 'number') ? rec.target : 181;
+  document.getElementById('actualInput').value = (typeof rec.actual === 'number') ? rec.actual : '';
+  document.getElementById('notesInput').value = rec.notes || '';
+  ['entrySignal','stopLoss','atrTarget','equityHigh'].forEach(k=>{
+    const el = document.querySelector(`.check-item[data-key="${k}"]`);
+    el.classList.toggle('on', !!rec[k]);
+  });
+  renderResultBanner();
+}
+
+function collectForm(){
+  const target = parseFloat(document.getElementById('targetInput').value) || 181;
+  const actualRaw = document.getElementById('actualInput').value;
+  const rec = {
+    target,
+    actual: actualRaw === '' ? undefined : parseFloat(actualRaw),
+    notes: document.getElementById('notesInput').value,
+  };
+  ['entrySignal','stopLoss','atrTarget','equityHigh'].forEach(k=>{
+    const el = document.querySelector(`.check-item[data-key="${k}"]`);
+    rec[k] = el.classList.contains('on');
+  });
+  if(rec.actual === undefined) delete rec.actual;
+  return rec;
+}
+
+function setStatus(msg){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 2200);
+}
+
+async function init(){
+  document.getElementById('dateInput').value = currentDate;
+  allDays = await loadAllDays();
+  loadFormForDate(currentDate);
+  renderTape();
+  renderStats();
+  renderHistory();
+
+  document.getElementById('dateInput').addEventListener('change', (e)=>{
+    currentDate = e.target.value;
+    loadFormForDate(currentDate);
+    renderTape();
+  });
+
+  document.querySelectorAll('.check-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      el.classList.toggle('on');
+    });
+  });
+
+  document.getElementById('targetInput').addEventListener('input', renderResultBanner);
+  document.getElementById('actualInput').addEventListener('input', renderResultBanner);
+
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    const rec = collectForm();
+    const ok = await saveDay(currentDate, rec);
+    if(ok){
+      allDays[currentDate] = rec;
+      renderTape();
+      renderStats();
+      renderHistory();
+      setStatus('已儲存 ✓');
+    }else{
+      setStatus('儲存失敗，請重試');
+    }
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', async ()=>{
+    if(!confirm(`確定要清除 ${currentDate} 的紀錄嗎？`)) return;
+    await deleteDay(currentDate);
+    delete allDays[currentDate];
+    loadFormForDate(currentDate);
+    renderTape();
+    renderStats();
+    renderHistory();
+    setStatus('已清除');
+  });
+}
+
+init();
+</script>
+</body>
+</html>
