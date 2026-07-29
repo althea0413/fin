@@ -92,7 +92,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
         margin-bottom: 20px;
     }
@@ -150,6 +150,25 @@
     .session-details { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
     .session-right { text-align: right; }
     .pts-text { color: var(--accent-blue); font-weight: bold; font-size: 0.85rem; }
+    .amount-row { display: flex; align-items: center; gap: 3px; justify-content: flex-end; }
+    .amount-row .dollar { font-size: 0.8rem; color: var(--text-muted); }
+    .amount-input {
+        width: 82px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        text-align: right;
+        padding: 5px 6px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: #fff;
+        color: var(--text-main);
+    }
+    .amount-input.pos { color: var(--accent-red); }
+    .amount-input.neg { color: var(--accent-green); }
+    .day-total { font-size: 0.8rem; font-weight: bold; }
+    .day-total.pos { color: var(--accent-red); }
+    .day-total.neg { color: var(--accent-green); }
+    .day-total.zero { color: var(--text-muted); }
 
     .badge { padding: 2px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; margin-right: 3px; display: inline-block; margin-bottom: 2px; }
     .badge-big { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
@@ -179,7 +198,7 @@
 
 <div class="header">
     <h1>☁️ 日夜盤打卡卡 ☁️</h1>
-    <p>每盤目標 +180 點・停損 -100 點・打卡只記錄有沒有做到,口數看你真實本金</p>
+    <p>每盤目標 +150 點・停損 -100 點・打卡只記錄有沒有做到,口數看你真實本金</p>
 </div>
 
 <div class="capital-card">
@@ -193,7 +212,7 @@
         <span id="positionBadges"></span>
     </div>
     <div class="capital-note">
-        門檻：每 57,000 元可加 1 口微台，5 口微台 = 1 口小台，20 口微台 = 1 口大台。這裡不會因為你打勾就自動加錢——口數永遠照你自己輸入的真實本金算。
+        門檻：每 47,700 元可加 1 口微台（1.5 倍保證金），5 口微台 = 1 口小台，20 口微台 = 1 口大台。這裡不會因為你打勾就自動加錢——口數永遠照你自己輸入的真實本金算。
     </div>
 </div>
 
@@ -203,12 +222,16 @@
         <div class="value" id="completedCount">0</div>
     </div>
     <div class="stat-card">
-        <h3>累積點數</h3>
-        <div class="value" id="totalPts" style="color: var(--accent-blue);">0</div>
+        <h3>實際累積損益</h3>
+        <div class="value" id="totalActual" style="color: var(--accent-blue);">$0</div>
     </div>
     <div class="stat-card">
         <h3>連續全開</h3>
         <div class="value" id="streak" style="color: var(--accent-gold);">0</div>
+    </div>
+    <div class="stat-card">
+        <h3>勝率</h3>
+        <div class="value" id="winRate" style="color: var(--accent-blue);">--</div>
     </div>
 </div>
 
@@ -221,12 +244,18 @@
 const CHECK_KEY = 'daynight_checkin_v2';
 const CAPITAL_KEY = 'daynight_checkin_capital_v2';
 const DATES_KEY = 'daynight_checkin_dates_v2';
-const marginPerMicro = 57000;
+const AMOUNT_KEY = 'daynight_checkin_amount_v2';
+const marginPerMicro = 47700;
 
 function loadChecks(){
     try { return JSON.parse(localStorage.getItem(CHECK_KEY)) || {}; } catch(e){ return {}; }
 }
 function saveChecks(d){ localStorage.setItem(CHECK_KEY, JSON.stringify(d)); }
+
+function loadAmounts(){
+    try { return JSON.parse(localStorage.getItem(AMOUNT_KEY)) || {}; } catch(e){ return {}; }
+}
+function saveAmounts(d){ localStorage.setItem(AMOUNT_KEY, JSON.stringify(d)); }
 
 function loadCapital(){
     const v = localStorage.getItem(CAPITAL_KEY);
@@ -280,10 +309,38 @@ function seedDates(){
     return out;
 }
 
+// Keep the schedule anchored to today: drop past dates, make sure today
+// (if a weekday) is included, and pad forward with weekdays to keep 14 days.
+function normalizeDates(list){
+    const today = formatDateLocal(new Date());
+    let out = list.filter(dt => dt >= today);
+    const todayDow = new Date(today + 'T00:00:00').getDay();
+    if (todayDow !== 0 && todayDow !== 6 && !out.includes(today)) {
+        out.unshift(today);
+    }
+    out.sort();
+    let cursor = out.length ? new Date(out[out.length - 1] + 'T00:00:00') : new Date();
+    while (out.length < 14) {
+        cursor.setDate(cursor.getDate() + 1);
+        const dow = cursor.getDay();
+        if (dow !== 0 && dow !== 6) {
+            const ds = formatDateLocal(cursor);
+            if (!out.includes(ds)) out.push(ds);
+        }
+    }
+    return out;
+}
+
 let dates = loadDates();
 if (dates.length === 0) {
     dates = seedDates();
     saveDates(dates);
+} else {
+    const normalized = normalizeDates(dates);
+    if (JSON.stringify(normalized) !== JSON.stringify(dates)) {
+        dates = normalized;
+        saveDates(dates);
+    }
 }
 
 function render(){
@@ -292,6 +349,7 @@ function render(){
     document.getElementById('positionBadges').innerHTML = positionBadges(capital);
 
     const checks = loadChecks();
+    const amounts = loadAmounts();
     const container = document.getElementById('cardsContainer');
     container.innerHTML = '';
 
@@ -303,24 +361,36 @@ function render(){
             { id: date + '-Night', type: '夜盤', icon: '🌙' }
         ];
 
+        const dayAmt = amounts[date + '-Day'];
+        const nightAmt = amounts[date + '-Night'];
+        const dayTotal = (typeof dayAmt === 'number' ? dayAmt : 0) + (typeof nightAmt === 'number' ? nightAmt : 0);
+        const hasAny = typeof dayAmt === 'number' || typeof nightAmt === 'number';
+        const totalClass = !hasAny ? 'zero' : (dayTotal > 0 ? 'pos' : (dayTotal < 0 ? 'neg' : 'zero'));
+
         let html = `<div class="day-header">
             <span>${weekday} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">${date}</span></span>
+            <span class="day-total ${totalClass}">${hasAny ? (dayTotal >= 0 ? '+' : '') + '$' + dayTotal.toLocaleString() : '未記錄'}</span>
         </div>`;
 
         sessions.forEach(s => {
             const isChecked = !!checks[s.id];
             const rowClass = isChecked ? 'session-row completed' : 'session-row';
+            const amtVal = amounts[s.id];
+            const amtClass = typeof amtVal === 'number' ? (amtVal > 0 ? 'pos' : (amtVal < 0 ? 'neg' : '')) : '';
             html += `
                 <div class="${rowClass}">
                     <div class="session-left">
                         <input type="checkbox" class="session-checkbox" data-id="${s.id}" ${isChecked ? 'checked' : ''}>
                         <div>
                             <div class="session-title">${s.icon} ${s.type}</div>
-                            <div class="session-details">目標 +180 點・停損 -100 點</div>
+                            <div class="session-details">目標 +150 點・停損 -100 點</div>
                         </div>
                     </div>
                     <div class="session-right">
-                        <div class="pts-text">${isChecked ? '180 點 ✓' : '未打卡'}</div>
+                        <div class="amount-row">
+                            <span class="dollar">$</span>
+                            <input type="number" class="amount-input ${amtClass}" data-id="${s.id}" value="${typeof amtVal === 'number' ? amtVal : ''}" placeholder="實際損益">
+                        </div>
                     </div>
                 </div>
             `;
@@ -342,14 +412,35 @@ function render(){
         });
     });
 
+    container.querySelectorAll('.amount-input').forEach(el => {
+        el.addEventListener('change', () => {
+            const amounts = loadAmounts();
+            const id = el.dataset.id;
+            const val = el.value.trim();
+            if (val === '') {
+                delete amounts[id];
+            } else {
+                const num = Number(val);
+                if (!isNaN(num)) amounts[id] = num;
+            }
+            saveAmounts(amounts);
+            render();
+        });
+    });
+
     updateSummary();
 }
 
 function updateSummary(){
     const checks = loadChecks();
+    const amounts = loadAmounts();
     const checkedIds = Object.keys(checks);
     document.getElementById('completedCount').textContent = checkedIds.length;
-    document.getElementById('totalPts').textContent = (checkedIds.length * 180).toLocaleString();
+
+    const totalActual = Object.values(amounts).reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+    const actualEl = document.getElementById('totalActual');
+    actualEl.textContent = (totalActual >= 0 ? '+' : '') + '$' + totalActual.toLocaleString();
+    actualEl.style.color = totalActual > 0 ? 'var(--accent-red)' : (totalActual < 0 ? 'var(--accent-green)' : 'var(--text-muted)');
 
     const sortedDates = [...dates].sort().reverse();
     let streak = 0;
@@ -358,6 +449,15 @@ function updateSummary(){
         else break;
     }
     document.getElementById('streak').textContent = streak;
+
+    const recorded = Object.values(amounts).filter(v => typeof v === 'number');
+    if (recorded.length === 0) {
+        document.getElementById('winRate').textContent = '--';
+    } else {
+        const wins = recorded.filter(v => v > 0).length;
+        const rate = Math.round((wins / recorded.length) * 100);
+        document.getElementById('winRate').textContent = `${rate}% (${wins}/${recorded.length})`;
+    }
 }
 
 document.getElementById('saveCapitalBtn').addEventListener('click', () => {
@@ -386,6 +486,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     if (confirm('確定要清空所有打卡紀錄嗎？此動作無法復原。')) {
         localStorage.removeItem(CHECK_KEY);
         localStorage.removeItem(DATES_KEY);
+        localStorage.removeItem(AMOUNT_KEY);
         dates = seedDates();
         saveDates(dates);
         render();
