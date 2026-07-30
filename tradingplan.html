@@ -212,7 +212,7 @@
         <span id="positionBadges"></span>
     </div>
     <div class="capital-note">
-        門檻：每 47,700 元可加 1 口微台（1.5 倍保證金），5 口微台 = 1 口小台，20 口微台 = 1 口大台。這裡不會因為你打勾就自動加錢——口數永遠照你自己輸入的真實本金算。
+        門檻：每 39,400 元可加 1 口微台（可扛 15 次 100 點停損才追繳），5 口微台 = 1 口小台，20 口微台 = 1 口大台。這裡不會因為你打勾就自動加錢——口數永遠照你自己輸入的真實本金算。
     </div>
 </div>
 
@@ -245,7 +245,7 @@ const CHECK_KEY = 'daynight_checkin_v2';
 const CAPITAL_KEY = 'daynight_checkin_capital_v2';
 const DATES_KEY = 'daynight_checkin_dates_v2';
 const AMOUNT_KEY = 'daynight_checkin_amount_v2';
-const marginPerMicro = 47700;
+const marginPerMicro = 39400;
 
 function loadChecks(){
     try { return JSON.parse(localStorage.getItem(CHECK_KEY)) || {}; } catch(e){ return {}; }
